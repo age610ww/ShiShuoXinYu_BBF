@@ -3,15 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>世说新语 · 人物与故事索引（多 sheet 支持）</title>
+  <title>世说新语 · 人物与故事索引</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>.card{padding:1rem;border-radius:1rem;border:1px solid #e5e7eb;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}</style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-50">
   <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div class="text-xl font-bold">世说新语 · 人物与故事索引（多 sheet）</div>
+      <div class="text-xl font-bold">世说新语 · 人物与故事索引</div>
       <div class="flex items-center gap-2">
         <button id="btnExportJSON" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">导出JSON</button>
         <button id="btnExportCSV" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">导出CSV</button>
@@ -20,13 +19,7 @@
     </div>
 
     <div id="notice" class="text-sm text-gray-600">
-      页面将自动加载同目录下的 <code>shishuoxinyu.xlsx</code>，并合并其中的<b>所有工作表</b>。
-    </div>
-
-    <div id="uploader" class="card">
-      <div class="text-center text-sm text-gray-500">
-        （可选）临时导入本地文件：<input id="fileInput" type="file" accept=".xlsx,.xls,.csv" class="border rounded px-2 py-1" />
-      </div>
+      页面将自动加载同目录下的 <code>shishuoxinyu.xlsx</code>。
     </div>
 
     <div id="listView" class="space-y-3 hidden">
@@ -44,261 +37,77 @@
           <div id="personName" class="text-2xl font-bold"></div>
         </div>
         <div class="flex items-center gap-2">
+          <button id="btnEdit" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">✏️ 添加/编辑信息</button>
           <button id="btnExportPersonJSON" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">导出此人 JSON</button>
           <button id="btnExportPersonMD" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">导出此人 Markdown</button>
         </div>
       </div>
 
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="md:col-span-2 space-y-3">
-          <div class="card">
-            <div class="font-semibold mb-3">相关故事（自动提取）</div>
-            <div id="storiesList" class="space-y-3"></div>
-          </div>
+      <div id="notesDisplay" class="text-gray-800 whitespace-pre-wrap bg-white p-4 rounded-xl border shadow-sm"></div>
 
-          <div class="card">
-            <div class="font-semibold mb-3">自录故事</div>
-            <div id="customList" class="space-y-3"></div>
-            <div class="grid gap-2 mt-2">
-              <input id="customDivision" class="px-3 py-2 border rounded-xl" placeholder="分类（可选，如 德行/言语 等）" />
-              <textarea id="customText" class="px-3 py-2 border rounded-xl min-h-[100px]" placeholder="在这里粘贴或录入新的故事文本…"></textarea>
-              <div class="flex items-center gap-2">
-                <button id="btnAddCustom" class="px-3 py-2 rounded-xl border shadow-sm hover:bg-gray-50">加入自录</button>
-                <div class="text-xs text-gray-500">自录故事保存在浏览器本地，并会包含在导出中</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <div class="card">
-            <div class="font-semibold mb-3">备注</div>
-            <textarea id="notesArea" class="w-full min-h-[160px] px-3 py-2 border rounded-xl" placeholder="记录该人物的生平、关系、出典等补充信息…"></textarea>
-            <div class="flex items-center gap-2 mt-2">
-              <button id="btnSaveNotes" class="px-3 py-1.5 rounded-xl border shadow-sm hover:bg-gray-50">保存备注</button>
-              <div class="text-xs text-gray-500">自动保存在本地；导出 JSON/Markdown 时会包含</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="storiesList" class="space-y-3"></div>
     </div>
+  </div>
 
-    <div class="text-xs text-gray-400 pt-8 border-t">
-      小贴士：把 <b>shishuoxinyu.xlsx</b> 放在网页同一文件夹后，上传到 GitHub 仓库并开启 Pages，即可分享链接给任何人。
+  <!-- 编辑对话框 -->
+  <div id="editModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+      <h2 class="text-lg font-bold mb-4">添加/编辑信息</h2>
+      <label class="block mb-1 font-medium">备注：</label>
+      <textarea id="editNotes" class="w-full border rounded-xl p-2 mb-3 min-h-[120px]"></textarea>
+      <label class="block mb-1 font-medium">自录故事：</label>
+      <input id="customDivision" class="w-full border rounded-xl p-2 mb-2" placeholder="分类（可选）" />
+      <textarea id="customText" class="w-full border rounded-xl p-2 min-h-[100px] mb-4" placeholder="输入新的故事文本…"></textarea>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancel" class="px-3 py-1.5 rounded-xl border hover:bg-gray-50">取消</button>
+        <button id="btnSave" class="px-3 py-1.5 rounded-xl border bg-blue-50 hover:bg-blue-100">保存</button>
+      </div>
     </div>
   </div>
 
   <script>
-    // 工具
     const SEP = /[,，、；;\s]+/g;
     const splitNames = (s='') => (s||'').split(SEP).map(x=>x.trim()).filter(Boolean);
-    const dl = (data, filename, mime='application/json') => {
-      const blob = new Blob([data], {type: mime + ';charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
-    };
-    const keyNotes = (name)=>`shishuo_notes_${name}`;
-    const keyCustom = (name)=>`shishuo_custom_${name}`;
-    const saveNotes = (name, v)=> localStorage.setItem(keyNotes(name), v||'');
-    const loadNotes = (name)=> localStorage.getItem(keyNotes(name)) || '';
-    const saveCustom = (name, arr)=> localStorage.setItem(keyCustom(name), JSON.stringify(arr||[]));
-    const loadCustom = (name)=> { try { return JSON.parse(localStorage.getItem(keyCustom(name))||'[]'); } catch(e){ return []; } };
+    const dl = (data, filename, mime='application/json') => { const blob = new Blob([data], {type: mime}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); };
+    const keyNotes = n=>`shishuo_notes_${n}`;
+    const keyCustom = n=>`shishuo_custom_${n}`;
+    const saveNotes = (n,v)=>localStorage.setItem(keyNotes(n),v||'');
+    const loadNotes = n=>localStorage.getItem(keyNotes(n))||'';
+    const saveCustom = (n,a)=>localStorage.setItem(keyCustom(n),JSON.stringify(a||[]));
+    const loadCustom = n=>{try{return JSON.parse(localStorage.getItem(keyCustom(n))||'[]');}catch{return[]}};
 
-    // 状态
-    let ROWS = [];
-    let PEOPLE = new Map();
-    let STORIES = [];
-    let COLUMN_MAP = null;
-    let SELECTED = null;
+    let ROWS=[],PEOPLE=new Map(),STORIES=[],COLUMN_MAP=null,SELECTED=null;
 
-    // 列检测
-    function detectColumns(headers) {
-      const lower = headers.map(h => String(h||'').toLowerCase());
-      const find = preds => headers.find((h, i) => preds.some(p => lower[i].includes(p)));
-      const textCol = find(['entry','正文','content','text']) || headers[2];
-      const mainCol = find(['shishuo_labels','主要','main','label']) || headers[3];
-      const otherCol = find(['zhu_labels','次要','注','others']) || headers[4];
-      const divisionCol = find(['division','门类','类别']) || headers[0];
-      const idCol = find(['idx','编号','id']) || headers[1];
-      return { textCol, mainCol, otherCol, divisionCol, idCol };
-    }
+    function detectColumns(headers){const lower=headers.map(h=>String(h||'').toLowerCase());const find=p=>headers.find((h,i)=>p.some(q=>lower[i].includes(q)));return{ textCol:find(['正文','text','entry'])||headers[2], mainCol:find(['主要','main'])||headers[3], otherCol:find(['次要','注','other'])||headers[4], divisionCol:find(['门类','类'])||headers[0], idCol:find(['编号','id'])||headers[1] }}
 
-    function buildIndex(rows){
-      if(!rows?.length) return;
-      const headers = Object.keys(rows[0]);
-      COLUMN_MAP = detectColumns(headers);
-      const {textCol, mainCol, otherCol, divisionCol, idCol} = COLUMN_MAP;
+    function buildIndex(rows){if(!rows?.length)return;const headers=Object.keys(rows[0]);COLUMN_MAP=detectColumns(headers);const{ textCol,mainCol,otherCol,divisionCol,idCol}=COLUMN_MAP;STORIES=rows.map((r,i)=>({id:r[idCol]||i+1,division:r[divisionCol]||'',text:r[textCol]||'',main:splitNames(r[mainCol]),others:splitNames(r[otherCol])}));PEOPLE=new Map();for(const s of STORIES){const names=[...new Set([...s.main,...s.others])];for(const n of names){if(!PEOPLE.has(n))PEOPLE.set(n,{name:n,stories:[]});PEOPLE.get(n).stories.push(s);}}}
 
-      STORIES = rows.map((r,i)=>({
-        id: r[idCol] ?? (i+1),
-        division: r[divisionCol] ?? '',
-        text: r[textCol] ?? '',
-        main: splitNames(r[mainCol]),
-        others: splitNames(r[otherCol]),
-        raw: r,
-      }));
+    const listView=document.getElementById('listView'),personView=document.getElementById('personView'),peopleGrid=document.getElementById('peopleGrid'),totalPeople=document.getElementById('totalPeople'),visiblePeople=document.getElementById('visiblePeople'),searchInput=document.getElementById('searchInput'),personNameEl=document.getElementById('personName'),storiesList=document.getElementById('storiesList'),notesDisplay=document.getElementById('notesDisplay');
 
-      PEOPLE = new Map();
-      const add = (name, story)=>{
-        if(!name) return;
-        if(!PEOPLE.has(name)) PEOPLE.set(name, {name, stories: []});
-        PEOPLE.get(name).stories.push(story);
-      };
-      for(const s of STORIES){
-        const all = [...new Set([...(s.main||[]), ...(s.others||[])])];
-        for(const n of all) add(n, s);
-      }
-    }
+    function peopleArray(){return Array.from(PEOPLE.values()).sort((a,b)=>a.name.localeCompare(b.name,'zh'));}
 
-    // 视图元素
-    const listView = document.getElementById('listView');
-    const personView = document.getElementById('personView');
-    const peopleGrid = document.getElementById('peopleGrid');
-    const totalPeople = document.getElementById('totalPeople');
-    const visiblePeople = document.getElementById('visiblePeople');
-    const searchInput = document.getElementById('searchInput');
-    const personNameEl = document.getElementById('personName');
-    const storiesList = document.getElementById('storiesList');
-    const customList = document.getElementById('customList');
-    const notesArea = document.getElementById('notesArea');
+    function renderPeople(){const q=searchInput.value.trim();const arr=peopleArray();totalPeople.textContent=arr.length;const filtered=q?arr.filter(p=>p.name.includes(q)):arr.slice(0,1000);visiblePeople.textContent=filtered.length;peopleGrid.innerHTML='';filtered.forEach(p=>{const b=document.createElement('button');b.className='text-left p-3 rounded-2xl border shadow-sm hover:bg-gray-50';b.innerHTML=`<div class='font-semibold'>${p.name}</div><div class='text-xs text-gray-500 mt-1'>出现 ${p.stories.length} 则</div>`;b.onclick=()=>showPerson(p.name);peopleGrid.appendChild(b);});}
 
-    function peopleArray(){ return Array.from(PEOPLE.values()).sort((a,b)=> a.name.localeCompare(b.name,'zh')); }
+    function showList(){personView.classList.add('hidden');listView.classList.remove('hidden');SELECTED=null;location.hash='';renderPeople();}
 
-    function showList(){
-      personView.classList.add('hidden'); listView.classList.remove('hidden'); SELECTED = null; location.hash=''; renderPeople();
-    }
-    function showPerson(name){
-      SELECTED = name; location.hash = '#/person/' + encodeURIComponent(name);
-      listView.classList.add('hidden'); personView.classList.remove('hidden'); renderPerson();
-    }
+    function showPerson(name){SELECTED=name;location.hash='#/person/'+encodeURIComponent(name);listView.classList.add('hidden');personView.classList.remove('hidden');const p=PEOPLE.get(name);personNameEl.textContent=name;notesDisplay.textContent=loadNotes(name)||'（暂无备注）';storiesList.innerHTML='';p.stories.forEach(s=>{const div=document.createElement('div');div.className='p-3 rounded-2xl border bg-white shadow-sm';div.innerHTML=`<div class='text-sm text-gray-600 mb-1'>${s.division||''} 编号 ${s.id}</div><div class='whitespace-pre-wrap'>${s.text}</div>`;storiesList.appendChild(div);});}
 
-    function renderPeople(){
-      const q = (searchInput.value||'').trim();
-      const arr = peopleArray();
-      totalPeople.textContent = arr.length;
-      const filtered = q ? arr.filter(p=>p.name.includes(q)) : arr.slice(0, 2000);
-      visiblePeople.textContent = filtered.length;
-      peopleGrid.innerHTML = '';
-      filtered.forEach(p=>{
-        const btn = document.createElement('button');
-        btn.type='button'; btn.className='text-left p-3 rounded-2xl border shadow-sm hover:bg-gray-50';
-        btn.innerHTML = '<div class="font-semibold">'+p.name+'</div><div class="text-xs text-gray-500 mt-1">出现 '+p.stories.length+' 则</div>';
-        btn.addEventListener('click', ()=> showPerson(p.name));
-        peopleGrid.appendChild(btn);
-      });
-    }
+    document.getElementById('btnBack').onclick=showList;
+    searchInput.oninput=renderPeople;
 
-    function renderPerson(){
-      const p = PEOPLE.get(SELECTED);
-      if(!p){ alert('未找到人物：'+SELECTED); showList(); return; }
-      personNameEl.textContent = SELECTED;
-      notesArea.value = loadNotes(SELECTED);
+    document.getElementById('btnExportJSON').onclick=()=>{const payload={people:peopleArray().map(p=>({name:p.name,notes:loadNotes(p.name),stories:p.stories}))};dl(JSON.stringify(payload,null,2),'shishuo_export.json');};
+    document.getElementById('btnExportCSV').onclick=()=>{const header='person,id,division,text';const lines=[];peopleArray().forEach(p=>p.stories.forEach(s=>{lines.push([p.name,s.id,s.division,'"'+s.text.replaceAll('"','""')+'"'].join(','));}));dl([header,...lines].join('\n'),'shishuo_export.csv','text/csv');};
+    document.getElementById('btnExportPersonJSON').onclick=()=>{const p=PEOPLE.get(SELECTED);if(p)dl(JSON.stringify({name:p.name,notes:loadNotes(p.name),stories:p.stories},null,2),p.name+'_stories.json');};
+    document.getElementById('btnExportPersonMD').onclick=()=>{const p=PEOPLE.get(SELECTED);if(!p)return;let md=`# ${p.name}\n\n备注：${loadNotes(p.name)||''}\n\n`;p.stories.forEach(s=>{md+=`## ${s.division||''} 编号 ${s.id}\n${s.text}\n\n`;});dl(md,p.name+'.md','text/markdown');};
 
-      // 自录
-      const customs = loadCustom(SELECTED);
-      customList.innerHTML = '';
-      customs.forEach(c=>{
-        const box = document.createElement('div'); box.className='p-3 rounded-2xl border bg-white shadow-sm relative';
-        box.innerHTML = '<div class="text-sm text-gray-600 mb-1">'+(c.division||'自录')+'</div><div class="whitespace-pre-wrap">'+(c.text||'')+'</div>';
-        const del = document.createElement('button'); del.type='button'; del.className='absolute right-2 top-2 p-1 rounded-lg hover:bg-gray-50 text-gray-600'; del.textContent='删除';
-        del.addEventListener('click', ()=>{ const list = loadCustom(SELECTED).filter(x=>x.id!==c.id); saveCustom(SELECTED, list); renderPerson(); });
-        box.appendChild(del); customList.appendChild(box);
-      });
+    document.getElementById('btnClear').onclick=()=>{ROWS=[];PEOPLE=new Map();STORIES=[];COLUMN_MAP=null;SELECTED=null;listView.classList.add('hidden');personView.classList.add('hidden');alert('已清空');};
 
-      // 自动故事
-      const ss = p.stories.slice().sort((a,b)=> String(a.id).localeCompare(String(b.id), 'zh'));
-      storiesList.innerHTML = '';
-      if(!ss.length){ storiesList.innerHTML = '<div class="text-gray-500">（当前表格中未检索到该人物的故事）</div>'; }
-      else ss.forEach(s=>{
-        const d = document.createElement('div'); d.className='p-3 rounded-2xl border bg-white shadow-sm';
-        const head = (s.division ? (s.division + ' · ') : '') + '编号 ' + String(s.id);
-        d.innerHTML = '<div class="text-sm text-gray-600 mb-1">'+head+'</div><div class="leading-relaxed whitespace-pre-wrap">'+(s.text||'')+'</div>';
-        storiesList.appendChild(d);
-      });
-    }
+    const modal=document.getElementById('editModal');
+    document.getElementById('btnEdit').onclick=()=>{document.getElementById('editNotes').value=loadNotes(SELECTED);modal.classList.remove('hidden');modal.classList.add('flex');};
+    document.getElementById('btnCancel').onclick=()=>{modal.classList.add('hidden');modal.classList.remove('flex');};
+    document.getElementById('btnSave').onclick=()=>{saveNotes(SELECTED,document.getElementById('editNotes').value);const div=document.getElementById('customDivision').value,text=document.getElementById('customText').value;if(text.trim()){const list=loadCustom(SELECTED);list.push({id:'c'+Date.now(),division:div,text});saveCustom(SELECTED,list);}document.getElementById('customDivision').value='';document.getElementById('customText').value='';modal.classList.add('hidden');modal.classList.remove('flex');showPerson(SELECTED);};
 
-    // 事件
-    document.getElementById('btnBack').addEventListener('click', showList);
-    document.getElementById('btnSaveNotes').addEventListener('click', ()=>{ saveNotes(SELECTED, notesArea.value||''); alert('已保存备注'); });
-    document.getElementById('btnAddCustom').addEventListener('click', ()=>{
-      const divi = document.getElementById('customDivision').value || '';
-      const text = document.getElementById('customText').value || '';
-      if(!text.trim()) return;
-      const list = loadCustom(SELECTED); list.push({ id:'custom_'+Date.now(), division:divi, text });
-      saveCustom(SELECTED, list); document.getElementById('customDivision').value=''; document.getElementById('customText').value=''; renderPerson();
-    });
-    document.getElementById('btnExportJSON').addEventListener('click', ()=>{
-      const payload = { meta:{ generatedAt:new Date().toISOString(), totalStories:STORIES.length, totalPeople:PEOPLE.size, columnMap:COLUMN_MAP },
-        people: peopleArray().map(p=>({ name:p.name, notes:loadNotes(p.name), customStories:loadCustom(p.name), stories:p.stories.map(s=>({id:s.id, division:s.division, text:s.text})) })),
-        stories: STORIES.map(s=>({ id:s.id, division:s.division, main:s.main, others:s.others, text:s.text })), };
-      dl(JSON.stringify(payload,null,2), 'shishuo_export.json');
-    });
-    document.getElementById('btnExportCSV').addEventListener('click', ()=>{
-      const header = ['person','id','division','text'].join(',');
-      const lines = [];
-      peopleArray().forEach(p=> p.stories.forEach(s=>{
-        const t = String(s.text||'').replaceAll('"','""');
-        lines.push([p.name, s.id, s.division, '"'+t+'"'].join(','));
-      }));
-      dl([header, ...lines].join('\n'), 'shishuo_person_story.csv', 'text/csv');
-    });
-    document.getElementById('btnExportPersonJSON').addEventListener('click', ()=>{
-      const p = PEOPLE.get(SELECTED); if(!p) return;
-      const payload = { name: SELECTED, notes: loadNotes(SELECTED), customStories: loadCustom(SELECTED), stories: p.stories.map(s=>({id:s.id, division:s.division, text:s.text})) };
-      dl(JSON.stringify(payload, null, 2), SELECTED + '_stories.json');
-    });
-    document.getElementById('btnExportPersonMD').addEventListener('click', ()=>{
-      const p = PEOPLE.get(SELECTED); if(!p) return;
-      const notes = loadNotes(SELECTED); const customs = loadCustom(SELECTED);
-      let md = '# ' + SELECTED + '\n\n'; if(notes) md += '> 备注：' + notes + '\n\n';
-      if(customs?.length){ md += '## 自录故事\n'; customs.forEach((c,i)=>{ md += '### 自录 ' + (i+1) + '（' + (c.division||'自录') + '）\n' + (c.text||'') + '\n\n'; }); }
-      md += '## 相关故事（自动提取）\n'; p.stories.forEach(s=>{ md += '### ' + (s.division||'条目') + ' #' + s.id + '\n' + (s.text||'') + '\n\n'; });
-      dl(md, SELECTED + '.md', 'text/markdown');
-    });
-    document.getElementById('btnClear').addEventListener('click', ()=>{
-      ROWS=[]; PEOPLE=new Map(); STORIES=[]; COLUMN_MAP=null; SELECTED=null; document.getElementById('searchInput').value='';
-      listView.classList.add('hidden'); personView.classList.add('hidden'); alert('已清空页面数据（备注/自录依旧保存在本地）');
-    });
-    document.getElementById('fileInput').addEventListener('change', async (e)=>{
-      const f = e.target.files?.[0]; if(!f) return; const buf = await f.arrayBuffer();
-      let rows = [];
-      if(f.name.endsWith('.csv')){
-        const text = new TextDecoder('utf-8').decode(buf);
-        const lines = text.split(/\r?\n/).filter(Boolean);
-        const hdr = lines.shift().split(',');
-        rows = lines.map(line=>{ const parts = line.split(','); const obj={}; hdr.forEach((h,i)=> obj[h]=parts[i]); return obj; });
-      } else {
-        const wb = XLSX.read(buf, {type:'array'});
-        rows = [];
-        wb.SheetNames.forEach(name=>{
-          const sh = wb.Sheets[name];
-          rows.push(...XLSX.utils.sheet_to_json(sh, {defval:''}));
-        });
-      }
-      ROWS = rows; buildIndex(ROWS); listView.classList.remove('hidden'); personView.classList.add('hidden'); renderPeople();
-    });
-
-    // 自动加载所有 sheet
-    async function tryLoadDefault(){
-      try {
-        const res = await fetch('./shishuoxinyu.xlsx', {cache:'no-store'});
-        if(!res.ok) throw new Error('not found');
-        const buf = await res.arrayBuffer();
-        const wb = XLSX.read(buf, {type:'array'});
-        ROWS = [];
-        wb.SheetNames.forEach(name=>{
-          const sh = wb.Sheets[name];
-          ROWS.push(...XLSX.utils.sheet_to_json(sh, {defval:''}));
-        });
-        buildIndex(ROWS);
-        document.getElementById('notice').innerHTML = '已加载 <code>shishuoxinyu.xlsx</code> 的所有工作表。';
-        listView.classList.remove('hidden'); renderPeople();
-        const applyHash = ()=>{ const hash = decodeURIComponent(location.hash.slice(1)); const m = hash.match(/^\/person\/(.+)$/); if(m) showPerson(m[1]); };
-        window.addEventListener('hashchange', applyHash); applyHash();
-      } catch(e){
-        document.getElementById('notice').innerHTML = '未检测到 <code>shishuoxinyu.xlsx</code>，请在本页同目录上传该文件，或使用上方“临时导入本地文件”。';
-      }
-    }
+    async function tryLoadDefault(){try{const res=await fetch('./shishuoxinyu.xlsx',{cache:'no-store'});if(!res.ok)throw 0;const buf=await res.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});ROWS=[];wb.SheetNames.forEach(n=>ROWS.push(...XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''})));buildIndex(ROWS);document.getElementById('notice').innerHTML='已加载 <code>shishuoxinyu.xlsx</code>。';listView.classList.remove('hidden');renderPeople();const applyHash=()=>{const h=decodeURIComponent(location.hash.slice(1));const m=h.match(/^\/person\/(.+)$/);if(m)showPerson(m[1]);};window.addEventListener('hashchange',applyHash);applyHash();}catch{document.getElementById('notice').innerHTML='未检测到 <code>shishuoxinyu.xlsx</code>，请放在同目录。';}}
     tryLoadDefault();
   </script>
 </body>
