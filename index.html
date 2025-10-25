@@ -25,12 +25,11 @@
       </div>
     </div>
 
-    <div id="notice" class="text-sm text-gray-600"></div>
-
     <div id="listView" class="space-y-3 hidden">
       <div class="flex flex-col md:flex-row gap-2 md:items-center">
         <form class="grow" autocomplete="off" onsubmit="return false;">
-          <input id="searchInput" name="search_dynamic" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          <input id="searchInput" name="search_dynamic" type="search"
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                  class="w-full px-4 py-2 rounded-2xl border" placeholder="输入人物名搜索，如：陈蕃、徐稚…">
         </form>
         <div class="flex items-center gap-2">
@@ -77,51 +76,51 @@
   </div>
 
   <script>
-    const CONFIG = {{
+    const CONFIG = {
       SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7XeVZ1zske9iW5l_k26i5yfa4Kcb284XQVrT3mS1j3Mr5QgYWVRNHGrlFNoEe2WbcWpbB1z-_Vq-x/pub?output=csv",
       FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSdfd00f4PSD7t_3XzVrESJdQOCp8dRaH6NJHVb6U3IWcoVKNA/viewform"
-    }};
+    };
 
     const SEP = /[,，、；;\s]+/g;
     const splitNames = (s='') => (s||'').split(SEP).map(x=>x.trim()).filter(Boolean);
-    const dl = (data, filename, mime='application/json') => {{ const blob = new Blob([data], {{type: mime}}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }};
+    const dl = (data, filename, mime='application/json') => { const blob = new Blob([data], {type: mime}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); };
 
-    function parseCSV(text){{
-      text = text.replace(/^﻿/, '');
+    // 仅用于备注/自录：CSV 解析+表头映射（支持中文）
+    function parseCSV(text){
+      text = text.replace(/^\ufeff/, '');
       const rows=[]; let i=0, cur='', inQ=false, row=[];
-      function pushCell(){{ row.push(cur); cur=''; }}
-      function pushRow(){{ rows.push(row); row=[]; }}
-      while(i<text.length){{
+      function pushCell(){ row.push(cur); cur=''; }
+      function pushRow(){ rows.push(row); row=[]; }
+      while(i<text.length){
         const c=text[i];
-        if(inQ){{ if(c=='"' && text[i+1]=='"'){{ cur+='"'; i+=2; continue; }} if(c=='"'){{ inQ=false; i++; continue; }} cur+=c; i++; continue; }}
-        if(c=='"'){{ inQ=true; i++; continue; }}
-        if(c==','){{ pushCell(); i++; continue; }}
-        if(c=='
-'){{ pushCell(); pushRow(); i++; continue; }}
-        if(c==''){{ i++; continue; }}
+        if(inQ){ if(c=='"' && text[i+1]=='"'){ cur+='"'; i+=2; continue; } if(c=='"'){ inQ=false; i++; continue; } cur+=c; i++; continue; }
+        if(c=='"'){ inQ=true; i++; continue; }
+        if(c==','){ pushCell(); i++; continue; }
+        if(c=='\n'){ pushCell(); pushRow(); i++; continue; }
+        if(c=='\r'){ i++; continue; }
         cur+=c; i++;
-      }}
+      }
       pushCell(); if(row.length) pushRow();
       return rows;
-    }}
-    function mapHeader(header){{
+    }
+    function mapHeader(header){
       const norm = s=>String(s||'').replace(/\s+/g,'').toLowerCase();
       const h = header.map(norm);
-      const pick = aliases=>{{ for(const a of aliases){{ const i=h.indexOf(norm(a)); if(i!==-1) return i; }} return -1; }};
-      return {{
+      const pick = aliases=>{ for(const a of aliases){ const i=h.indexOf(norm(a)); if(i!==-1) return i; } return -1; };
+      return {
         person: pick(['person','人物','人物名','人名','姓名','name']),
         type: pick(['type','类型','类别','种类']),
         division: pick(['division','分类','门类','类']),
         text: pick(['text','内容','备注','自录','自录故事','故事','说明']),
         author: pick(['author','署名','作者','提交者','名字','name']),
         timestamp: pick(['timestamp','时间','时间戳','提交时间','日期','time','date'])
-      }};
-    }}
+      };
+    }
 
     let ROWS=[],PEOPLE=new Map(),STORIES=[],COLUMN_MAP=null,SELECTED=null;
     let CLOUD_ROWS=[];
 
-    function openForm(){ if(!CONFIG.FORM_URL){ alert('还未设置 FORM_URL'); return; } window.open(CONFIG.FORM_URL, '_blank'); }
+    function openForm(){ window.open(CONFIG.FORM_URL, '_blank'); }
     document.getElementById('btnOpenForm').onclick=openForm;
     document.getElementById('btnOpenForm2').onclick=openForm;
 
@@ -146,16 +145,26 @@
     }
     function renderCloudFor(person){
       const notes=[], customs=[];
-      CLOUD_ROWS.forEach(r=>{ if((r.person||'')===person){ if(r.type==='note') notes.push(r.text||''); else if(r.type==='custom') customs.push({ division:r.division||'', text:r.text||'', by:r.author||'', at:r.timestamp||'' }); } });
-      document.getElementById('notesDisplay').textContent = notes.join('\n');
+      CLOUD_ROWS.forEach(r=>{
+        if((r.person||'')===person){
+          if(r.type==='note') notes.push(r.text||'');
+          else if(r.type==='custom') customs.push({ division:r.division||'', text:r.text||'', by:r.author||'', at:r.timestamp||'' });
+        }
+      });
+      document.getElementById('notesDisplay').textContent = notes.join('\\n');
       const customList = document.getElementById('customList'); customList.innerHTML='';
-      customs.forEach(c=>{ const el=document.createElement('div'); el.className='p-3 rounded-2xl border bg-white shadow-sm'; el.innerHTML=`<div class="text-sm text-gray-600 mb-1">${c.division||''} ${c.by?('· '+c.by):''} ${c.at?('· '+c.at):''}</div><div class="whitespace-pre-wrap">${c.text||''}</div>`; customList.appendChild(el); });
+      customs.forEach(c=>{
+        const el=document.createElement('div'); el.className='p-3 rounded-2xl border bg-white shadow-sm';
+        el.innerHTML=`<div class="text-sm text-gray-600 mb-1">${c.division||''} ${c.by?('· '+c.by):''} ${c.at?('· '+c.at):''}</div><div class="whitespace-pre-wrap">${c.text||''}</div>`;
+        customList.appendChild(el);
+      });
     }
 
+    // Excel -> 构建索引
     function detectColumns(headers){
       const lower=headers.map(h=>String(h||'').toLowerCase());
       const find=p=>headers.find((h,i)=>p.some(q=>lower[i].includes(q)));
-      return{
+      return {
         textCol:find(['正文','text','entry'])||headers[2],
         mainCol:find(['主要','main'])||headers[3],
         otherCol:find(['次要','注','other'])||headers[4],
@@ -167,7 +176,7 @@
       if(!rows?.length) return;
       const headers=Object.keys(rows[0]);
       COLUMN_MAP=detectColumns(headers);
-      const{ textCol,mainCol,otherCol,divisionCol,idCol}=COLUMN_MAP;
+      const { textCol,mainCol,otherCol,divisionCol,idCol }=COLUMN_MAP;
       STORIES=rows.map((r,i)=>({
         id: r[idCol]||i+1, division: r[divisionCol]||'', text: r[textCol]||'',
         main: splitNames(r[mainCol]), others: splitNames(r[otherCol])
@@ -175,7 +184,10 @@
       PEOPLE=new Map();
       for(const s of STORIES){
         const names=[...new Set([...s.main,...s.others])];
-        for(const n of names){ if(!PEOPLE.has(n)) PEOPLE.set(n,{name:n,stories:[]}); PEOPLE.get(n).stories.push(s); }
+        for(const n of names){
+          if(!PEOPLE.has(n)) PEOPLE.set(n,{name:n,stories:[]});
+          PEOPLE.get(n).stories.push(s);
+        }
       }
     }
 
@@ -197,7 +209,13 @@
       const filtered=q?arr.filter(p=>p.name.includes(q)):arr.slice(0,1000);
       visiblePeople.textContent=filtered.length;
       peopleGrid.innerHTML='';
-      filtered.forEach(p=>{ const b=document.createElement('button'); b.className='text-left p-3 rounded-2xl border shadow-sm hover:bg-gray-50'; b.innerHTML=`<div class='font-semibold'>${p.name}</div><div class='text-xs text-gray-500 mt-1'>出现 ${p.stories.length} 则</div>`; b.onclick=()=>showPerson(p.name); peopleGrid.appendChild(b); });
+      filtered.forEach(p=>{
+        const b=document.createElement('button');
+        b.className='text-left p-3 rounded-2xl border shadow-sm hover:bg-gray-50';
+        b.innerHTML=`<div class='font-semibold'>${p.name}</div><div class='text-xs text-gray-500 mt-1'>出现 ${p.stories.length} 则</div>`;
+        b.onclick=()=>showPerson(p.name);
+        peopleGrid.appendChild(b);
+      });
     }
 
     async function showPerson(name){
@@ -207,7 +225,13 @@
 
       storiesList.innerHTML='';
       const p = PEOPLE.get(name);
-      if(p && p.stories.length){ p.stories.forEach(s=>{ const div=document.createElement('div'); div.className='p-3 rounded-2xl border bg-white shadow-sm'; div.innerHTML=`<div class='text-sm text-gray-600 mb-1'>${s.division||''} 编号 ${s.id}</div><div class='whitespace-pre-wrap'>${s.text}</div>`; storiesList.appendChild(div); }); }
+      if(p && p.stories.length){
+        p.stories.forEach(s=>{
+          const div=document.createElement('div'); div.className='p-3 rounded-2xl border bg-white shadow-sm';
+          div.innerHTML=`<div class='text-sm text-gray-600 mb-1'>${s.division||''} 编号 ${s.id}</div><div class='whitespace-pre-wrap'>${s.text}</div>`;
+          storiesList.appendChild(div);
+        });
+      }
 
       try{ CLOUD_ROWS = await loadCloudRows(); }catch(e){ console.warn(e); }
       renderCloudFor(name);
@@ -218,9 +242,9 @@
     sortSelect.onchange=renderPeople;
 
     document.getElementById('btnExportJSON').onclick=async()=>{ const payload={ people: peopleArray().map(p=>({ name:p.name, stories:p.stories })) }; dl(JSON.stringify(payload,null,2),'shishuo_export.json'); };
-    document.getElementById('btnExportCSV').onclick=()=>{ const header='person,id,division,text'; const EOL='\r\n'; const lines=[]; peopleArray().forEach(p=>p.stories.forEach(s=>{const t=String(s.text||'').replaceAll('"','""'); lines.push([p.name,s.id,s.division,`"${t}"`].join(',')); })); const csv=['\ufeff'+header, ...lines].join(EOL); dl(csv,'shishuo_export.csv','text/csv;charset=utf-8'); };
+    document.getElementById('btnExportCSV').onclick=()=>{ const header='person,id,division,text'; const EOL='\\r\\n'; const lines=[]; peopleArray().forEach(p=>p.stories.forEach(s=>{const t=String(s.text||'').replaceAll('\"','\"\"'); lines.push([p.name,s.id,s.division,`\"${t}\"`].join(',')); })); const csv=['\\ufeff'+header, ...lines].join(EOL); dl(csv,'shishuo_export.csv','text/csv;charset=utf-8'); };
     document.getElementById('btnExportPersonJSON').onclick=()=>{ const p = PEOPLE.get(SELECTED); if(!p) return; const payload = { name: SELECTED, stories: p.stories }; dl(JSON.stringify(payload,null,2), SELECTED + '_stories.json'); };
-    document.getElementById('btnExportPersonMD').onclick=()=>{ const p = PEOPLE.get(SELECTED); if(!p) return; let md = '# ' + SELECTED + '\n\n'; p.stories.forEach(s=>{ md += '## ' + (s.division||'条目') + ' 编号 ' + s.id + '\n' + (s.text||'') + '\n\n'; }); dl(md, SELECTED + '.md', 'text/markdown'); };
+    document.getElementById('btnExportPersonMD').onclick=()=>{ const p = PEOPLE.get(SELECTED); if(!p) return; let md = '# ' + SELECTED + '\\n\\n'; p.stories.forEach(s=>{ md += '## ' + (s.division||'条目') + ' 编号 ' + s.id + '\\n' + (s.text||'') + '\\n\\n'; }); dl(md, SELECTED + '.md', 'text/markdown'); };
     document.getElementById('btnClear').onclick=()=>{ ROWS=[]; PEOPLE=new Map(); STORIES=[]; COLUMN_MAP=null; SELECTED=null; listView.classList.add('hidden'); personView.classList.add('hidden'); alert('已清空'); };
 
     async function tryLoadExcel(){
@@ -231,12 +255,12 @@
         const wb=XLSX.read(buf,{type:'array'});
         ROWS=[]; wb.SheetNames.forEach(n=>ROWS.push(...XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''})));
         buildIndex(ROWS);
-        document.getElementById('notice').innerHTML='';
-        listView.classList.remove('hidden'); renderPeople();
+        listView.classList.remove('hidden');
+        renderPeople();
         const applyHash=()=>{const h=decodeURIComponent(location.hash.slice(1)); const m=h.match(/^\/person\/(.+)$/); if(m) showPerson(m[1]);};
         window.addEventListener('hashchange', applyHash); applyHash();
       }catch(e){
-        document.getElementById('notice').innerHTML='未能加载 <code>shishuoxinyu.xlsx</code>（'+e.message+'）';
+        alert('未能加载 shishuoxinyu.xlsx：'+e.message+'。请确认它与 index.html 同目录、文件名大小写准确，并 Ctrl+F5 强刷。');
         console.error('Excel 加载失败：', e);
       }
     }
