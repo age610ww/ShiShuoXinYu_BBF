@@ -50,17 +50,17 @@
       </div>
 
       <div class="card">
-        <div class="font-semibold mb-1">备注（来自 Google 表格）</div>
+        <div class="font-semibold mb-1">备注</div>
         <div id="notesDisplay" class="text-gray-800 whitespace-pre-wrap"></div>
       </div>
 
       <div class="card">
-        <div class="font-semibold mb-2">相关故事（自动提取自 Excel）</div>
+        <div class="font-semibold mb-2">相关故事</div>
         <div id="storiesList" class="space-y-3"></div>
       </div>
 
       <div class="card">
-        <div class="font-semibold mb-2">自录故事（来自 Google 表格）</div>
+        <div class="font-semibold mb-2">自录故事</div>
         <div id="customList" class="space-y-3 text-gray-800"></div>
       </div>
     </div>
@@ -140,7 +140,7 @@
           else if(r.type==='custom') customs.push({ division:r.division||'', text:r.text||'', by:r.author||'', at:r.timestamp||'' });
         }
       });
-      document.getElementById('notesDisplay').textContent = notes.length? notes.join('\n') : '（暂无备注）';
+      document.getElementById('notesDisplay').textContent = notes.length? notes.join('\n') : '';
       const customList = document.getElementById('customList'); customList.innerHTML='';
       customs.forEach(c=>{
         const el=document.createElement('div'); el.className='p-3 rounded-2xl border bg-white shadow-sm';
