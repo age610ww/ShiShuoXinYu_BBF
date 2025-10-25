@@ -23,9 +23,7 @@
       </div>
     </div>
 
-    <div id="notice" class="text-sm text-gray-600">
-      本页将从同目录 <code>shishuoxinyu.xlsx</code> 读取人物与故事；备注/自录来自 Google 表格（已配置）。
-    </div>
+    <div id="notice" class="text-sm text-gray-600">页面会从 <code>shishuoxinyu.xlsx</code> 读取人物故事；备注/自录来自 Google 表格。</div>
 
     <div id="listView" class="space-y-3 hidden">
       <div class="flex gap-2 items-center">
@@ -78,8 +76,9 @@
     const splitNames = (s='') => (s||'').split(SEP).map(x=>x.trim()).filter(Boolean);
     const dl = (data, filename, mime='application/json') => { const blob = new Blob([data], {type: mime}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); };
 
-    // 简易 CSV 解析（支持引号、逗号、换行）
+    // CSV 解析（支持中文表头 & 引号）
     function parseCSV(text){
+      text = text.replace(/^\ufeff/, ''); // 去BOM
       const rows=[]; let i=0, cur='', inQ=false, row=[];
       function pushCell(){ row.push(cur); cur=''; }
       function pushRow(){ rows.push(row); row=[]; }
@@ -100,11 +99,31 @@
       return rows;
     }
 
+    // 表头映射（支持中英文别名）
+    function mapHeader(header){
+      const norm = (s)=>String(s||'').replace(/\s+/g,'').toLowerCase();
+      const h = header.map(norm);
+      const pick = (aliases)=>{
+        for(const a of aliases){
+          const i = h.indexOf(norm(a));
+          if(i!==-1) return i;
+        }
+        return -1;
+      };
+      return {
+        person: pick(['person','人物','人名','姓名','name']),
+        type: pick(['type','类型','类别','种类']),
+        division: pick(['division','分类','门类','类']),
+        text: pick(['text','内容','备注','自录','自录故事','故事','说明']),
+        author: pick(['author','署名','作者','提交者','名字','name']),
+        timestamp: pick(['timestamp','时间','时间戳','提交时间','日期','time','date'])
+      };
+    }
+
     // ===== 状态 =====
     let ROWS=[],PEOPLE=new Map(),STORIES=[],COLUMN_MAP=null,SELECTED=null;
-    let CLOUD_ROWS=[]; // 仅用于备注/自录
+    let CLOUD_ROWS=[];
 
-    // ===== 事件 =====
     function openForm(){
       if(!CONFIG.FORM_URL){ alert('还未设置 FORM_URL（Google 表单链接）'); return; }
       window.open(CONFIG.FORM_URL, '_blank');
@@ -112,22 +131,22 @@
     document.getElementById('btnOpenForm').onclick=openForm;
     document.getElementById('btnOpenForm2').onclick=openForm;
 
-    // ===== 仅从 CSV 读取备注/自录（不生成人物） =====
     async function loadCloudRows(){
       if(!CONFIG.SHEET_CSV_URL) return [];
       const res = await fetch(CONFIG.SHEET_CSV_URL, { cache: 'no-store' });
       const text = await res.text();
       const table = parseCSV(text);
       if(table.length===0) return [];
-      const header = table[0].map(h=>h.trim());
-      const idx = Object.fromEntries(header.map((h,i)=>[h,i]));
+      const header = table[0];
+      const idx = mapHeader(header);
+      function take(r, i){ return i>=0 && i<r.length ? (r[i]||'').trim() : ''; }
       const rows = table.slice(1).map(r=>({
-        person: (r[idx.person]||'').trim(),
-        type: (r[idx.type]||'').trim().toLowerCase(),
-        division: (r[idx.division]||'').trim(),
-        text: (r[idx.text]||'').trim(),
-        author: (r[idx.author]||'').trim(),
-        timestamp: (r[idx.timestamp]||'').trim()
+        person: take(r, idx.person),
+        type: (take(r, idx.type) || '').toLowerCase(),
+        division: take(r, idx.division),
+        text: take(r, idx.text),
+        author: take(r, idx.author),
+        timestamp: take(r, idx.timestamp)
       })).filter(x=>x.person);
       return rows;
     }
@@ -140,16 +159,16 @@
           else if(r.type==='custom') customs.push({ division:r.division||'', text:r.text||'', by:r.author||'', at:r.timestamp||'' });
         }
       });
-      document.getElementById('notesDisplay').textContent = notes.length? notes.join('\n') : '';
+      document.getElementById('notesDisplay').textContent = notes.join('\n');
       const customList = document.getElementById('customList'); customList.innerHTML='';
       customs.forEach(c=>{
         const el=document.createElement('div'); el.className='p-3 rounded-2xl border bg-white shadow-sm';
-        el.innerHTML=`<div class="text-sm text-gray-600 mb-1">${c.division||'自录'} · ${c.by||''} · ${c.at||''}</div><div class="whitespace-pre-wrap">${c.text||''}</div>`;
+        el.innerHTML=`<div class="text-sm text-gray-600 mb-1">${c.division||''} ${c.by?('· '+c.by):''} ${c.at?('· '+c.at):''}</div><div class="whitespace-pre-wrap">${c.text||''}</div>`;
         customList.appendChild(el);
       });
     }
 
-    // ===== Excel 列检测与构建索引 =====
+    // ===== Excel 读取 =====
     function detectColumns(headers){
       const lower=headers.map(h=>String(h||'').toLowerCase());
       const find=p=>headers.find((h,i)=>p.some(q=>lower[i].includes(q)));
@@ -184,7 +203,7 @@
       }
     }
 
-    // ===== 视图渲染 =====
+    // ===== 视图 =====
     const listView=document.getElementById('listView'),personView=document.getElementById('personView'),peopleGrid=document.getElementById('peopleGrid'),totalPeople=document.getElementById('totalPeople'),visiblePeople=document.getElementById('visiblePeople'),searchInput=document.getElementById('searchInput'),personNameEl=document.getElementById('personName'),storiesList=document.getElementById('storiesList'),notesDisplay=document.getElementById('notesDisplay'),customList=document.getElementById('customList');
 
     function peopleArray(){
@@ -221,8 +240,6 @@
           div.innerHTML=`<div class='text-sm text-gray-600 mb-1'>${s.division||''} 编号 ${s.id}</div><div class='whitespace-pre-wrap'>${s.text}</div>`;
           storiesList.appendChild(div);
         });
-      } else {
-        storiesList.innerHTML = '<div class="text-gray-500">（此人暂无 Excel 中的故事）</div>';
       }
 
       // 备注/自录（CSV）
@@ -259,7 +276,6 @@
 
     document.getElementById('btnClear').onclick=()=>{ ROWS=[]; PEOPLE=new Map(); STORIES=[]; COLUMN_MAP=null; SELECTED=null; listView.classList.add('hidden'); personView.classList.add('hidden'); alert('已清空'); };
 
-    // ===== 只从 Excel 载入（不做 CSV 兜底） =====
     async function tryLoadExcel(){
       try{
         const res=await fetch('./shishuoxinyu.xlsx',{cache:'no-store'});
@@ -268,12 +284,12 @@
         const wb=XLSX.read(buf,{type:'array'});
         ROWS=[]; wb.SheetNames.forEach(n=>ROWS.push(...XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''})));
         buildIndex(ROWS);
-        document.getElementById('notice').innerHTML='已加载 <code>shishuoxinyu.xlsx</code>。';
+        document.getElementById('notice').innerHTML='';
         listView.classList.remove('hidden'); renderPeople();
         const applyHash=()=>{const h=decodeURIComponent(location.hash.slice(1)); const m=h.match(/^\/person\/(.+)$/); if(m) showPerson(m[1]);};
         window.addEventListener('hashchange', applyHash); applyHash();
       }catch(e){
-        document.getElementById('notice').innerHTML='未检测到或无法加载 <code>shishuoxinyu.xlsx</code>，请确认与 <code>index.html</code> 同目录、文件名准确（注意大小写），并强制刷新（Ctrl+F5）。错误：'+e.message;
+        document.getElementById('notice').innerHTML='未检测到或无法加载 <code>shishuoxinyu.xlsx</code>（'+e.message+'）';
         console.error('Excel 加载失败：', e);
       }
     }
