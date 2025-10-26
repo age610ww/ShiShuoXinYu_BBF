@@ -64,8 +64,13 @@
       </div>
 
       <div class="card">
-        <div class="font-semibold mb-2">相关故事</div>
-        <div id="storiesList" class="space-y-3"></div>
+        <div class="font-semibold mb-2">在正文中作为主要人物出现</div>
+        <div id="storiesMain" class="space-y-3"></div>
+      </div>
+
+      <div class="card">
+        <div class="font-semibold mb-2">在正文中作为次要人物出现或在注中出现</div>
+        <div id="storiesOther" class="space-y-3"></div>
       </div>
 
       <div class="card">
@@ -160,14 +165,14 @@
       });
     }
 
-    // Excel -> 构建索引
+    // Excel -> 构建索引（区分主/次）
     function detectColumns(headers){
       const lower=headers.map(h=>String(h||'').toLowerCase());
       const find=p=>headers.find((h,i)=>p.some(q=>lower[i].includes(q)));
       return {
         textCol:find(['正文','text','entry'])||headers[2],
-        mainCol:find(['主要','main'])||headers[3],
-        otherCol:find(['次要','注','other'])||headers[4],
+        mainCol:find(['主要','main','shishuo'])||headers[3],
+        otherCol:find(['次要','注','other','zhu_'])||headers[4],
         divisionCol:find(['门类','类','division'])||headers[0],
         idCol:find(['编号','id'])||headers[1]
       };
@@ -178,27 +183,39 @@
       COLUMN_MAP=detectColumns(headers);
       const { textCol,mainCol,otherCol,divisionCol,idCol }=COLUMN_MAP;
       STORIES=rows.map((r,i)=>({
-        id: r[idCol]||i+1, division: r[divisionCol]||'', text: r[textCol]||'',
-        main: splitNames(r[mainCol]), others: splitNames(r[otherCol])
+        id: r[idCol]||i+1,
+        division: r[divisionCol]||'',
+        text: r[textCol]||'',
+        main: splitNames(r[mainCol]),
+        others: splitNames(r[otherCol])
       }));
       PEOPLE=new Map();
       for(const s of STORIES){
         const names=[...new Set([...s.main,...s.others])];
         for(const n of names){
-          if(!PEOPLE.has(n)) PEOPLE.set(n,{name:n,stories:[]});
-          PEOPLE.get(n).stories.push(s);
+          if(!PEOPLE.has(n)) PEOPLE.set(n,{name:n,stories:[], mainCount:0, otherCount:0});
+          const person = PEOPLE.get(n);
+          person.stories.push(s);
+          if(s.main.includes(n)) person.mainCount++;
+          else person.otherCount++;
         }
       }
     }
 
-    const listView=document.getElementById('listView'),personView=document.getElementById('personView'),peopleGrid=document.getElementById('peopleGrid'),totalPeople=document.getElementById('totalPeople'),visiblePeople=document.getElementById('visiblePeople'),searchInput=document.getElementById('searchInput'),personNameEl=document.getElementById('personName'),storiesList=document.getElementById('storiesList'),notesDisplay=document.getElementById('notesDisplay'),customList=document.getElementById('customList');
+    const listView=document.getElementById('listView'),personView=document.getElementById('personView'),peopleGrid=document.getElementById('peopleGrid'),totalPeople=document.getElementById('totalPeople'),visiblePeople=document.getElementById('visiblePeople'),searchInput=document.getElementById('searchInput'),personNameEl=document.getElementById('personName'),storiesMain=document.getElementById('storiesMain'),storiesOther=document.getElementById('storiesOther'),customList=document.getElementById('customList');
+
     const sortSelect=document.getElementById('sortSelect');
 
     function peopleArray(){ return Array.from(PEOPLE.values()); }
     function sortPeople(arr){
       const mode = sortSelect.value;
       if(mode==='alpha'){ arr.sort((a,b)=>a.name.localeCompare(b.name,'zh')); }
-      else { arr.sort((a,b)=> (b.stories.length - a.stories.length) || a.name.localeCompare(b.name,'zh')); }
+      else {
+        arr.sort((a,b)=> {
+          const ta=(a.mainCount+a.otherCount), tb=(b.mainCount+b.otherCount);
+          return (tb - ta) || a.name.localeCompare(b.name,'zh');
+        });
+      }
       return arr;
     }
 
@@ -210,9 +227,11 @@
       visiblePeople.textContent=filtered.length;
       peopleGrid.innerHTML='';
       filtered.forEach(p=>{
+        const total = p.mainCount + p.otherCount;
         const b=document.createElement('button');
         b.className='text-left p-3 rounded-2xl border shadow-sm hover:bg-gray-50';
-        b.innerHTML=`<div class='font-semibold'>${p.name}</div><div class='text-xs text-gray-500 mt-1'>出现 ${p.stories.length} 则</div>`;
+        b.innerHTML=`<div class='font-semibold'>${p.name}</div>
+                     <div class='text-xs text-gray-500 mt-1'>出现：主 ${p.mainCount} / 次 ${p.otherCount}（共 ${total}）</div>`;
         b.onclick=()=>showPerson(p.name);
         peopleGrid.appendChild(b);
       });
@@ -223,17 +242,19 @@
       listView.classList.add('hidden'); personView.classList.remove('hidden');
       personNameEl.textContent=name;
 
-      storiesList.innerHTML='';
+      storiesMain.innerHTML=''; storiesOther.innerHTML='';
       const p = PEOPLE.get(name);
-      if(p && p.stories.length){
+      if(p){
         p.stories.forEach(s=>{
+          const isMain = s.main.includes(name);
+          const target = isMain ? storiesMain : storiesOther;
           const div=document.createElement('div'); div.className='p-3 rounded-2xl border bg-white shadow-sm';
           div.innerHTML=`<div class='text-sm text-gray-600 mb-1'>${s.division||''} 编号 ${s.id}</div><div class='whitespace-pre-wrap'>${s.text}</div>`;
-          storiesList.appendChild(div);
+          target.appendChild(div);
         });
       }
 
-      try{ CLOUD_ROWS = await loadCloudRows(); }catch(e){ console.warn(e); }
+      try{ const rows = await loadCloudRows(); CLOUD_ROWS = rows; }catch(e){ console.warn(e); }
       renderCloudFor(name);
     }
 
@@ -241,10 +262,36 @@
     searchInput.oninput=renderPeople;
     sortSelect.onchange=renderPeople;
 
-    document.getElementById('btnExportJSON').onclick=async()=>{ const payload={ people: peopleArray().map(p=>({ name:p.name, stories:p.stories })) }; dl(JSON.stringify(payload,null,2),'shishuo_export.json'); };
-    document.getElementById('btnExportCSV').onclick=()=>{ const header='person,id,division,text'; const EOL='\\r\\n'; const lines=[]; peopleArray().forEach(p=>p.stories.forEach(s=>{const t=String(s.text||'').replaceAll('\"','\"\"'); lines.push([p.name,s.id,s.division,`\"${t}\"`].join(',')); })); const csv=['\\ufeff'+header, ...lines].join(EOL); dl(csv,'shishuo_export.csv','text/csv;charset=utf-8'); };
-    document.getElementById('btnExportPersonJSON').onclick=()=>{ const p = PEOPLE.get(SELECTED); if(!p) return; const payload = { name: SELECTED, stories: p.stories }; dl(JSON.stringify(payload,null,2), SELECTED + '_stories.json'); };
-    document.getElementById('btnExportPersonMD').onclick=()=>{ const p = PEOPLE.get(SELECTED); if(!p) return; let md = '# ' + SELECTED + '\\n\\n'; p.stories.forEach(s=>{ md += '## ' + (s.division||'条目') + ' 编号 ' + s.id + '\\n' + (s.text||'') + '\\n\\n'; }); dl(md, SELECTED + '.md', 'text/markdown'); };
+    document.getElementById('btnExportJSON').onclick=async()=>{
+      const payload={ people: peopleArray().map(p=>({ name:p.name, mainCount:p.mainCount, otherCount:p.otherCount, stories:p.stories })) };
+      dl(JSON.stringify(payload,null,2),'shishuo_export.json');
+    };
+    document.getElementById('btnExportCSV').onclick=()=>{
+      const header='person,main_count,other_count,total';
+      const EOL='\\r\\n';
+      const lines=[];
+      peopleArray().forEach(p=>{
+        const total = p.mainCount + p.otherCount;
+        lines.push([p.name,p.mainCount,p.otherCount,total].join(','));
+      });
+      const csv=['\\ufeff'+header, ...lines].join(EOL);
+      dl(csv,'shishuo_people_counts.csv','text/csv;charset=utf-8');
+    };
+    document.getElementById('btnExportPersonJSON').onclick=()=>{
+      const p = PEOPLE.get(SELECTED); if(!p) return;
+      const payload = { name: SELECTED, mainCount:p.mainCount, otherCount:p.otherCount, stories: p.stories };
+      dl(JSON.stringify(payload,null,2), SELECTED + '_stories.json');
+    };
+    document.getElementById('btnExportPersonMD').onclick=()=>{
+      const p = PEOPLE.get(SELECTED); if(!p) return;
+      let md = '# ' + SELECTED + '\\n\\n';
+      md += '出现：主 ' + p.mainCount + ' / 次 ' + p.otherCount + '（共 ' + (p.mainCount+p.otherCount) + '）\\n\\n';
+      p.stories.forEach(s=>{
+        const role = s.main.includes(SELECTED) ? '主要' : '次要/注';
+        md += '## ' + (s.division||'条目') + ' 编号 ' + s.id + '（' + role + '）\\n' + (s.text||'') + '\\n\\n';
+      });
+      dl(md, SELECTED + '.md', 'text/markdown');
+    };
     document.getElementById('btnClear').onclick=()=>{ ROWS=[]; PEOPLE=new Map(); STORIES=[]; COLUMN_MAP=null; SELECTED=null; listView.classList.add('hidden'); personView.classList.add('hidden'); alert('已清空'); };
 
     async function tryLoadExcel(){
