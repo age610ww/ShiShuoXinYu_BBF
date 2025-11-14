@@ -3,7 +3,7 @@
 ## file list
 - `person_index.py`: util functions for adding entries to the `json.file`
 - `canonical_to_aliases.json`
-- `page_%d`
+- `page_%d.py`: 该页的条目添加文件
 
 ## done list
 见readme文件。
