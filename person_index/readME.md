@@ -6,8 +6,7 @@
 3. 通过命令行（CLI）提供查询人物、搜索人物、反查条目、导出全文等功能。
 4. 为研究使用提供 TXT / Markdown / HTML 格式的自动化原文导出。
 
-
-⸻
+---
 
 # 1. 文件结构
 
@@ -30,18 +29,17 @@ project/
        ...
 ```
 
-⸻
 
 # 2. PersonIndex
 
-person_index.py 提供：
-	•	新建人物条目
-	•	补充别称（aliases）
-	•	补充“見 ××”反向名称（reference_names）
-	•	补充人物出场篇名与条目号
-	•	冲突检测（重复别称、反向名冲突、非法篇名）
-	•	完整性检查（assert_integrity）
-	•	保存 JSON 数据文件
+`person_index.py` 提供：
+- 新建人物条目
+- 补充别称（aliases）
+- 补充“見 ××”反向名称（reference_names）
+- 补充人物出场篇名与条目号
+- 冲突检测（重复别称、反向名冲突、非法篇名）
+- 完整性检查（assert_integrity）
+- 保存 JSON 数据文件
 
 使用示例
 
@@ -62,7 +60,6 @@ idx.save()
 ```
 
 
-⸻
 
 # 3. 构建 entries.jsonl
 
@@ -87,7 +84,6 @@ idx.save()
 
 查询 CLI 将依赖此文件返回原文段落。
 
-⸻
 
 # 4. CLI 使用说明
 
@@ -96,10 +92,9 @@ idx.save()
 `python3 cli.py [command] [参数...]`
 
 CLI 会在启动时自动加载：
-	•	`canonical_to_aliases.json`
-	•	`entries.jsonl`
+- `canonical_to_aliases.json`
+- `entries.jsonl`
 
-⸻
 
 # 5. CLI 命令详解
 
@@ -132,8 +127,6 @@ CLI 会在启动时自动加载：
 
 `python3 cli.py text 言語 31`
 
-
-⸻
 
 # 6. 查询结果导出
 
@@ -172,12 +165,11 @@ Markdown 输出示例
 ```
 
 
-⸻
-
 # 7. 数据格式示例
 
-canonical_to_aliases.json 格式：
+`canonical_to_aliases.json` 格式：
 
+```
 {
   "王導": {
     "aliases": ["茂弘", "阿龍", "丞相"],
@@ -188,3 +180,4 @@ canonical_to_aliases.json 格式：
     }
   }
 }
+```
