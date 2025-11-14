@@ -19,23 +19,60 @@ python cli.py reverse 德行 5
 import argparse
 from person_index import PersonIndex
 from pprint import pprint
+import json
+from cli_utils import (
+    lookup_name, search_people, get_appearances, find_people_in_entry,
+    load_entries_jsonl
+)
+
+ENTRIES = load_entries_jsonl("entries.jsonl")
 
 def cmd_lookup(idx, args):
     name = args.name
-    # 尝试 canonical
-    if name in idx.data:
-        print(f"[canonical] {name}")
-        pprint(idx.data[name], width=100)
+    canonical = name
+
+    # 先尝试 canonical
+    if name not in idx.data:
+        canonical = lookup_name(idx, name)
+        if not canonical:
+            print(f"未找到：{name}")
+            return
+        print(f"[resolved] {name} → {canonical}")
+    else:
+        print(f"[canonical] {canonical}")
+
+    person = idx.data[canonical]
+    pprint(person, width=100)
+
+    # 是否导出？
+    print("\n是否要导出该人物的所有出场原文？")
+    print("y = txt, m = markdown, h = html, 其他 = 取消")
+    choice = input("> ").strip().lower()
+
+    if not choice:
         return
 
-    # 尝试 aliases / reference_names
-    from cli_utils import lookup_name
-    canonical = lookup_name(idx, name)
-    if canonical:
-        print(f"[resolved] {name}  →  {canonical}")
-        pprint(idx.data[canonical], width=100)
+    apps = person.get("appearances", {})
+    entries = []
+
+    for section, ids in apps.items():
+        for eid in ids:
+            key = (section, eid)
+            if key in ENTRIES:
+                entries.append((section, eid, ENTRIES[key]))
+
+    if not entries:
+        print("此人无可导出的条目。")
+        return
+
+    if choice == "y":
+        export_person_txt(canonical, entries)
+    elif choice == "m":
+        export_person_markdown(canonical, entries)
+    elif choice == "h":
+        export_person_html(canonical, entries)
     else:
-        print(f"未找到：{name}")
+        print("取消导出。")
 
 
 def cmd_search(idx, args):
@@ -69,6 +106,42 @@ def cmd_reverse(idx, args):
     else:
         for r in result:
             print(r)
+            
+
+def cmd_text(idx, args):
+    key = (args.section, args.index)
+    if key not in ENTRIES:
+        print("找不到對應條目")
+        return
+    print(ENTRIES[key])
+    
+    
+def export_person_txt(canonical, entries):
+    filename = f"{canonical}_entries.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        for section, eid, text in entries:
+            f.write(f"{section} {eid}\n{text}\n\n")
+    print(f"已导出：{filename}")
+
+
+def export_person_markdown(canonical, entries):
+    filename = f"{canonical}_entries.md"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"# {canonical} 出場條目\n\n")
+        for section, eid, text in entries:
+            f.write(f"## {section} {eid}\n")
+            f.write(f"> {text}\n\n")
+    print(f"已导出：{filename}")
+
+
+def export_person_html(canonical, entries):
+    filename = f"{canonical}_entries.html"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"<h1>{canonical} 出場條目</h1>\n")
+        for section, eid, text in entries:
+            f.write(f"<h3>{section} {eid}</h3>\n")
+            f.write(f"<blockquote>{text}</blockquote>\n")
+    print(f"已导出：{filename}")
 
 
 def main():
@@ -98,6 +171,12 @@ def main():
     p_rev.add_argument("section")
     p_rev.add_argument("entry", type=int)
     p_rev.set_defaults(func=cmd_reverse)
+    
+    # text
+    p_text = subparsers.add_parser("text", help="輸出某篇某條的原文")
+    p_text.add_argument("section")
+    p_text.add_argument("index", type=int)
+    p_text.set_defaults(func=cmd_text)
 
     args = parser.parse_args()
 

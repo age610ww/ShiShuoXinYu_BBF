@@ -44,3 +44,13 @@ def search_people(idx, text):
                 results.append(canonical)
                 break
     return results
+
+
+def load_entries_jsonl(path="entries.jsonl"):
+    entries = {}
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            obj = json.loads(line)
+            key = (obj["section"], int(obj["index"]))
+            entries[key] = obj["text"]
+    return entries
