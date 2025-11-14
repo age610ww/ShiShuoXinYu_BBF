@@ -46,7 +46,7 @@ def cmd_lookup(idx, args):
 
     # 是否导出？
     print("\n是否要导出该人物的所有出场原文？")
-    print("y = txt, m = markdown, h = html, 其他 = 取消")
+    print("y = txt, m = markdown, 其他 = 取消")
     choice = input("> ").strip().lower()
 
     if not choice:
@@ -134,14 +134,14 @@ def export_person_markdown(canonical, entries):
     print(f"已导出：{filename}")
 
 
-def export_person_html(canonical, entries):
-    filename = f"{canonical}_entries.html"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(f"<h1>{canonical} 出場條目</h1>\n")
-        for section, eid, text in entries:
-            f.write(f"<h3>{section} {eid}</h3>\n")
-            f.write(f"<blockquote>{text}</blockquote>\n")
-    print(f"已导出：{filename}")
+# def export_person_html(canonical, entries):
+#     filename = f"{canonical}_entries.html"
+#     with open(filename, "w", encoding="utf-8") as f:
+#         f.write(f"<h1>{canonical} 出場條目</h1>\n")
+#         for section, eid, text in entries:
+#             f.write(f"<h3>{section} {eid}</h3>\n")
+#             f.write(f"<blockquote>{text}</blockquote>\n")
+#     print(f"已导出：{filename}")
 
 
 def main():

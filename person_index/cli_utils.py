@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import json
+
 def get_person(idx, canonical):
     return idx.data.get(canonical, None)
 
