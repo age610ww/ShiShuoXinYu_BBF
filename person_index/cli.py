@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+'''
+世說新語 人名索引 CLI 查詢工具
+使用方法
+查人（自动处理别称、反向名）
+python cli.py lookup 阿龍
+
+模糊搜索
+python cli.py search 王
+
+查某人在哪些篇目出现
+python cli.py appear 王衍
+
+查某篇目某条目里有谁
+python cli.py reverse 德行 5
+'''
 
 import argparse
 from person_index import PersonIndex

@@ -34,6 +34,14 @@ class PersonIndex:
         else:
             self.data = OrderedDict()
         self._reindex()
+        
+        #--------- 有效篇名 ----------
+        self.VALID_SECTIONS = {
+        "德行","言語","政事","文學","方正","雅量","識鑒","賞譽","品藻","規箴",
+        "捷悟","夙惠","豪爽","容止","自新","企羡","傷逝","棲逸","賢媛","術解",
+        "巧蓺","寵禮","任誕","簡傲","排調","輕詆","假譎","黜免","儉嗇","汰侈",
+        "忿狷","讒險","尤悔","紕漏","惑溺","仇隟"
+}
 
     # ---------- 基础 ----------
 
@@ -96,6 +104,10 @@ class PersonIndex:
         if appearances:
             app = self.data[canonical]["appearances"]
             for section, ids in appearances.items():
+                if section not in self.VALID_SECTIONS:
+                    self._handle_conflict(
+                        f"未知篇名：'{section}' 不在世說新語 36門類中"
+                    )
                 ids = list(ids)
                 exist = app.get(section, [])
                 merged = sorted(set(int(x) for x in list(exist) + ids))
@@ -119,6 +131,10 @@ class PersonIndex:
         self.ref_owner[reference_name] = canonical  # 更新索引
 
     def add_appearance(self, canonical: str, section: str, ids: Iterable[int]):
+        if section not in self.VALID_SECTIONS:
+            self._handle_conflict(
+                f"未知篇名：'{section}' 不在世說新語 36門類中"
+            )
         self._ensure_person(canonical)
         app = self.data[canonical]["appearances"]
         exist = app.get(section, [])
